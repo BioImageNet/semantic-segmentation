@@ -90,3 +90,37 @@ ENV/
 
 # Image directory
 images/
+
+*.tif
+
+.idea/misc.xml
+
+.idea/modules.xml
+
+.idea/semantic-segmentation.iml
+
+.idea/vagrant.xml
+
+.idea/vcs.xml
+
+.vagrant/machines/default/virtualbox/action_provision
+
+.idea/workspace.xml
+
+.vagrant/machines/default/virtualbox/action_set_name
+
+.vagrant/machines/default/virtualbox/creator_uid
+
+.vagrant/machines/default/virtualbox/id
+
+.vagrant/machines/default/virtualbox/index_uuid
+
+.vagrant/machines/default/virtualbox/private_key
+
+.vagrant/machines/default/virtualbox/synced_folders
+
+Vagrantfile
+
+.vagrant/
+
+.idea/
