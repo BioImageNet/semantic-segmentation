@@ -9,6 +9,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from scipy.ndimage import binary_fill_holes
 
+from keras.models import Model
+
+from keras.models import Sequential
+from keras.layers import Dense, Input, Dropout, Activation, Flatten
+from keras.layers import Convolution2D, MaxPooling2D
+
+from keras.optimizers import SGD
+
+import keras.callbacks
+
 from sys import getsizeof
 
 
@@ -35,26 +45,39 @@ def create_trainset(imagepath, groundtruthpath, window):
             groundtruth = img.basic.loadfile(groundtruthpath + file)
             groundtruth = np.invert(groundtruth)
             groundtruth = binary_fill_holes(groundtruth, structure=np.ones((3, 3))).astype(int)
-            image = img.basic.loadfile(imagepath + file)
+
+            image = img_as_float(img.basic.loadfile(imagepath + file))
             border = window / 2
-            big_image = img.basic.addborder(image, border)
 
-            for x in xrange(100):
-                print str(x) + "/" + str(len(image))
+            l = len(image)
+            big_image= np.zeros([l + border * 2, l + border * 2])
+            big_image[border:border + l, border:border + l] = image
+
+            for x in xrange(len(image)):
                 for y in xrange(len(image)):
-                    X.append(img.basic.neighbors(big_image, border + x, border + y , window))
-                    Y.append(groundtruth[x,y])
+                    X.append(img.basic.neighbors2(big_image, border + x, border + y , window).reshape([25*25]))
+                    Y.append(int(groundtruth[x,y]))
 
-    print "size" +str(getsizeof(X))
+
+    return X, Y
 
 
 def create_model():
 
         model = Sequential()
-        model.add(Dense(60, input_dim=(400,400), init='normal', activation='relu'))
-        model.add(Dense(1, init='normal', activation='sigmoid'))
 
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+
+        model.add(Dense(10, input_dim=25))
+        model.add(Dense(1))
+
+
+
+        sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        model.compile(loss='binary_crossentropy',
+                      optimizer=sgd,
+                      metrics=['accuracy'])
+
+
         return model
 
 
@@ -62,7 +85,19 @@ def run(X, Y):
         seed = 7
         np.random.seed(seed)
         # evaluate model with standardized dataset
-        estimator = KerasClassifier(build_fn=create_model, nb_epoch=100, batch_size=5, verbose=0)
-        kfold = StratifiedKFold(y=Y, n_folds=10, shuffle=True, random_state=seed)
-        results = cross_val_score(estimator, X, Y, cv=kfold)
-        print("Results: %.2f%% (%.2f%%)" % (results.mean() * 100, results.std() * 100))
+
+        model = create_model()
+
+        print "model OK"
+        batch_size = 32
+        nb_epoch = 1
+
+        X = X[:1000]
+
+        print "sample size: " + str(len(X))
+
+        model.fit(X, Y,
+                  batch_size=batch_size,
+                  nb_epoch=nb_epoch,
+                  validation_data=(X, Y),
+                  shuffle=True, verbose=2)

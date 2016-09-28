@@ -24,6 +24,11 @@ def neighbors(arr,x,y,n=25):
     arr=np.roll(np.roll(arr,shift=-x+1,axis=0),shift=-y+1,axis=1)
     return arr[:n,:n]
 
+def neighbors2(arr,x,y,n=25):
+    h = n / 2
+    return arr[x-(h):x-(h)+n,y-(h):y-(h)+n]
+
+
 def loadfile(filepath):
     seg = io.imread(filepath, as_grey = True)
     return seg
@@ -34,6 +39,18 @@ def addborder(image, size):
     big = np.zeros([l+size*2, l+size*2])
     big[size:size+l,size:size+l] = image
     return big
+
+
+def test():
+
+    p = np.ones([3,3])
+    print p
+
+    p = addborder(p, 2)
+
+    print p
+
+    print neighbors2(p,3,3,5)
 
 
 
