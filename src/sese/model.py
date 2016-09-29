@@ -1,35 +1,13 @@
-
-from keras.models import Sequential
-from keras.layers import Dense
 from keras.wrappers.scikit_learn import KerasClassifier
 from sklearn.cross_validation import cross_val_score
-from sklearn.preprocessing import LabelEncoder
-from sklearn.cross_validation import StratifiedKFold
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
-from scipy.ndimage import binary_fill_holes
 from sklearn.cross_validation import KFold
-
-from keras.models import Model
-
 from keras.models import Sequential
-from keras.layers import Dense, Input, Dropout, Activation, Flatten
-from keras.layers import Convolution2D, MaxPooling2D
-
+from keras.layers import Dense,  Dropout, Activation, Flatten
+from keras.layers import Convolution2D
 from keras.optimizers import SGD
-
-import keras.callbacks
-
-from sys import getsizeof
-
-
 from skimage import io, img_as_float
-
-
 import os
-
 import numpy as np
-
 import img.basic
 
 def create_trainset(imagepath, groundtruthpath, window):
@@ -47,7 +25,15 @@ def create_trainset(imagepath, groundtruthpath, window):
 
             groundtruth = img.basic.loadfile(groundtruthpath + file)
             groundtruth = np.invert(groundtruth)
-            groundtruth = binary_fill_holes(groundtruth, structure=np.ones((3, 3))).astype(int)
+
+            #groundtruth = binary_fill_holes(groundtruth, structure=np.ones((3, 3))).astype(int)
+
+            groundtruth[groundtruth == 255] = 1
+
+
+            #plt.imshow(groundtruth, cmap='Greys_r')
+            #plt.show()
+            #return
 
             image = img_as_float(img.basic.loadfile(imagepath + file))
             border = window / 2
@@ -114,10 +100,52 @@ def run(X, Y):
 
         print "Model: OK"
 
-        estimator = KerasClassifier(build_fn=create_model, nb_epoch=10, batch_size=256, verbose=1)
+        estimator = KerasClassifier(build_fn=create_model, nb_epoch=1, batch_size=256, verbose=1)
         kfold = KFold(n=len(X), n_folds=5, shuffle=True, random_state=seed)
 
         results = cross_val_score(estimator, X, Y, cv=kfold)
         print("Results: %.2f%% (%.2f%%)" % (results.mean() * 100, results.std() * 100))
 
         model.save_weights("model.hd5")
+
+        return model
+
+def testimage(model, imagepath, window):
+
+
+
+    image = img_as_float(img.basic.loadfile(imagepath))
+
+    result = np.zeros(image.shape)
+
+
+    border = window / 2
+
+    l = len(image)
+    big_image = np.zeros([l + border * 2, l + border * 2])
+    big_image[border:border + l, border:border + l] = image
+
+    X = np.empty([1,1, 25, 25])
+
+    i = 0
+
+
+    for x in xrange(len(image)):
+        for y in xrange(len(image)):
+            x_ = img.basic.neighbors2(big_image, border + x, border + y, window)
+            X[0,0] = x_
+            out = model.predict(X,batch_size=1, verbose=0)
+
+
+
+            if out[0,0] > out[0,1]:
+                result[x,y] = 0
+            else:
+                result[x, y] = 1
+
+
+    #plt.imshow(result, cmap='Greys_r')
+    #plt.show()
+    img.basic.savefile(result, "output.tif")
+
+

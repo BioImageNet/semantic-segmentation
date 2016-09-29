@@ -33,6 +33,9 @@ def loadfile(filepath):
     seg = io.imread(filepath, as_grey = True)
     return seg
 
+def savefile(image, file):
+    io.imsave(file,image)
+
 
 def addborder(image, size):
     l = len(image)
