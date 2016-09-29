@@ -8,6 +8,7 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 from scipy.ndimage import binary_fill_holes
+from sklearn.cross_validation import KFold
 
 from keras.models import Model
 
@@ -36,11 +37,13 @@ def create_trainset(imagepath, groundtruthpath, window):
 
     filenames = [x for x in os.listdir(imagepath)]
 
-    X = []
-    Y = []
+    X = np.empty([320000 * len(filenames), 1, 25, 25])
+    Y = np.empty([320000 * len(filenames), 2])
 
-    for file in filenames[:2]:
+    for file in filenames:
         if file[0] != '.':
+
+            print file
 
             groundtruth = img.basic.loadfile(groundtruthpath + file)
             groundtruth = np.invert(groundtruth)
@@ -53,10 +56,22 @@ def create_trainset(imagepath, groundtruthpath, window):
             big_image= np.zeros([l + border * 2, l + border * 2])
             big_image[border:border + l, border:border + l] = image
 
+            i = 0
             for x in xrange(len(image)):
                 for y in xrange(len(image)):
-                    X.append(img.basic.neighbors2(big_image, border + x, border + y , window).reshape([25*25]))
-                    Y.append(int(groundtruth[x,y]))
+                    x_ = img.basic.neighbors2(big_image, border + x, border + y , window)
+
+                    X[i, 0] = x_
+                    y_ = int(groundtruth[x, y])
+
+                    Y[i, 0] = 0
+                    Y[i, 1] = 0
+
+                    Y[i, y_] = 1
+
+                    i = i + 1
+
+
 
 
     return X, Y
@@ -66,15 +81,24 @@ def create_model():
 
         model = Sequential()
 
+        model.add(Convolution2D(32, 3, 3, border_mode='same',
+                                input_shape=(1, 25,25)))
+        model.add(Activation('relu'))
+        model.add(Convolution2D(16, 3, 3))
+        model.add(Activation('relu'))
 
-        model.add(Dense(10, input_dim=25))
-        model.add(Dense(1))
+        model.add(Flatten())
+        model.add(Dense(20))
+        model.add(Activation('relu'))
+        model.add(Dropout(0.5))
+        model.add(Dense(2))
+        model.add(Activation('softmax'))
 
 
 
         sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-        model.compile(loss='binary_crossentropy',
-                      optimizer=sgd,
+        model.compile(loss='categorical_crossentropy',
+                      optimizer='adam',
                       metrics=['accuracy'])
 
 
@@ -88,16 +112,12 @@ def run(X, Y):
 
         model = create_model()
 
-        print "model OK"
-        batch_size = 32
-        nb_epoch = 1
+        print "Model: OK"
 
-        X = X[:1000]
+        estimator = KerasClassifier(build_fn=create_model, nb_epoch=10, batch_size=256, verbose=1)
+        kfold = KFold(n=len(X), n_folds=5, shuffle=True, random_state=seed)
 
-        print "sample size: " + str(len(X))
+        results = cross_val_score(estimator, X, Y, cv=kfold)
+        print("Results: %.2f%% (%.2f%%)" % (results.mean() * 100, results.std() * 100))
 
-        model.fit(X, Y,
-                  batch_size=batch_size,
-                  nb_epoch=nb_epoch,
-                  validation_data=(X, Y),
-                  shuffle=True, verbose=2)
+        model.save_weights("model.hd5")
