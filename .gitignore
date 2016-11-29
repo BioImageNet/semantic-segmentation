@@ -91,6 +91,8 @@ ENV/
 # Image directory
 images/
 
+data/
+
 *.tif
 
 .idea/misc.xml
